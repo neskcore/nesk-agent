@@ -11,10 +11,13 @@ class CdnService {
   static get storage() {
     return multer.diskStorage({
       destination: (req, file, cb) => {
+        // Pega o subfolder da query ou do body (campos que vierem antes do arquivo)
         const subfolder = req.query.subfolder || req.body.subfolder || "";
-        const cleanSubfolder = String(subfolder || "").replace(/\\/g, "/").trim();
-    const targetDir = path.join(ATTACHMENTS_DIR, cleanSubfolder);
-    console.log(`[CDN LIST] subfolder: "${subfolder}", targetDir: "${targetDir}"`);
+        const cleanSubfolder = String(subfolder).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").trim();
+        const targetDir = cleanSubfolder 
+          ? path.join(ATTACHMENTS_DIR, cleanSubfolder)
+          : ATTACHMENTS_DIR;
+          
         if (!fs.existsSync(targetDir)) {
           fs.mkdirSync(targetDir, { recursive: true });
         }

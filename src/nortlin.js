@@ -11,12 +11,23 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+app.get("/", (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Nesk Agent Operando normalmente",
+    version: "1.0.0",
+    status: "online",
+    timestamp: new Date() 
+  });
+});
 
 app.get("/health", (req, res) => {
   res.json({ 
     success: true, 
-    message: "Nesk Agent est� operante", 
+    message: "Nesk Agent está operante", 
     timestamp: new Date() 
   });
 });
@@ -45,10 +56,20 @@ cdnApp.use("/attachments", express.static(attachmentsPath, {
   index: false
 }));
 
+cdnApp.get("/", (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Nesk Agent Operando normalmente",
+    serving: "/attachments",
+    status: "online",
+    timestamp: new Date()
+  });
+});
+
 cdnApp.get("/health", (req, res) => {
   res.json({ 
     success: true, 
-    message: "Nesk CDN est� operante",
+    message: "Nesk Agent está operante",
     serving: "/attachments"
   });
 });

@@ -1,4 +1,5 @@
 const ProxyService = require('../../services/proxyService');
+const NginxService = require('../../services/nginxService');
 
 /**
  * Controller para gerenciar as requisições de Proxy
@@ -55,6 +56,44 @@ class ProxyController {
       res.json({ success });
     } catch (error) {
       res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  static async getConfig(req, res) {
+    try {
+      const config = await NginxService.getConfig(req.params.id);
+      res.json({ success: true, data: config });
+    } catch (error) {
+      res.status(404).json({ success: false, error: error.message });
+    }
+  }
+
+  static async saveConfig(req, res) {
+    try {
+      const { content } = req.body;
+      if (!content) throw new Error('Conteúdo é obrigatório');
+      
+      await NginxService.saveConfig(req.params.id, content);
+      res.json({ success: true, message: 'Configuração salva com sucesso' });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  static async uploadChunk(req, res) {
+    try {
+      const { chunkIndex, totalChunks, fileName, subfolder } = req.body;
+      const data = await ProxyService.handleChunkUpload({ 
+        chunkFile: req.file, 
+        chunkIndex: parseInt(chunkIndex), 
+        totalChunks: parseInt(totalChunks), 
+        fileName, 
+        subfolder 
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('[AGENT CHUNK ERROR]', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 }

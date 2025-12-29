@@ -1,11 +1,85 @@
 const { pool } = require('../db/mysql');
 const NginxService = require('./nginxService');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
+
+const ATTACHMENTS_DIR = path.join(__dirname, "..", "cdn", "attachments");
+const TEMP_CHUNKS_DIR = path.join(__dirname, "..", "cdn", "temp_chunks");
 
 /**
  * Serviço responsável pela lógica de negócio dos Proxies
  */
 class ProxyService {
+  /**
+   * Lida com o upload de arquivos em partes (Chunks) usando multipart/form-data
+   */
+  static async handleChunkUpload({ chunkFile, chunkIndex, totalChunks, fileName, subfolder }) {
+    if (!chunkFile) throw new Error('Arquivo de chunk não recebido');
+
+    if (!fs.existsSync(TEMP_CHUNKS_DIR)) {
+      fs.mkdirSync(TEMP_CHUNKS_DIR, { recursive: true });
+    }
+
+    const fileTempDir = path.join(TEMP_CHUNKS_DIR, fileName);
+    if (!fs.existsSync(fileTempDir)) {
+      fs.mkdirSync(fileTempDir, { recursive: true });
+    }
+
+    // Move o chunk temporário do multer para nossa pasta de controle
+    const chunkDest = path.join(fileTempDir, `chunk_${chunkIndex}`);
+    fs.renameSync(chunkFile.path, chunkDest);
+
+    // Verifica se todas as partes chegaram
+    const uploadedChunks = fs.readdirSync(fileTempDir);
+    if (uploadedChunks.length === totalChunks) {
+      // Monta o arquivo final
+      const cleanSubfolder = String(subfolder || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").trim();
+      const targetDir = cleanSubfolder 
+        ? path.join(ATTACHMENTS_DIR, cleanSubfolder)
+        : ATTACHMENTS_DIR;
+
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const finalPath = path.join(targetDir, fileName);
+      const writeStream = fs.createWriteStream(finalPath);
+
+      // Ordenar chunks numericamente para garantir a ordem correta
+      const sortedChunks = uploadedChunks
+        .filter(c => c.startsWith('chunk_'))
+        .sort((a, b) => {
+          return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+        });
+
+      for (const chunkName of sortedChunks) {
+        const chunkPath = path.join(fileTempDir, chunkName);
+        const data = fs.readFileSync(chunkPath);
+        writeStream.write(data);
+        fs.unlinkSync(chunkPath);
+      }
+
+      writeStream.end();
+      
+      // Limpa diretório temporário
+      setTimeout(() => {
+        try {
+          if (fs.existsSync(fileTempDir)) fs.rmdirSync(fileTempDir);
+        } catch (e) {
+          console.error('Erro ao remover pasta temporária:', e.message);
+        }
+      }, 1000);
+
+      return {
+        filename: fileName,
+        path: subfolder ? `attachments/${subfolder}/${fileName}` : `attachments/${fileName}`,
+        completed: true
+      };
+    }
+
+    return { completed: false, received: uploadedChunks.length };
+  }
   /**
    * Cria um novo proxy no banco e aplica no Nginx se estiver ativado
    */

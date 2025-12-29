@@ -91,6 +91,47 @@ server {
   }
 
   /**
+   * Retorna o conteúdo do arquivo de configuração de um proxy
+   */
+  static async getConfig(proxyId) {
+    const fileName = `nesk_proxy_${proxyId}.conf`;
+    const fullPath = path.join(NGINX_CONF_PATH, fileName);
+
+    if (!fs.existsSync(fullPath)) {
+      throw new Error('Arquivo de configuração não encontrado');
+    }
+
+    return fs.readFileSync(fullPath, 'utf8');
+  }
+
+  /**
+   * Salva um conteúdo customizado no arquivo de configuração
+   */
+  static async saveConfig(proxyId, content) {
+    const fileName = `nesk_proxy_${proxyId}.conf`;
+    const fullPath = path.join(NGINX_CONF_PATH, fileName);
+
+    try {
+      // 1. Salva o novo conteúdo
+      fs.writeFileSync(fullPath, content);
+
+      // 2. Valida a sintaxe do Nginx
+      try {
+        execSync(`${NGINX_BIN} -t`, { stdio: 'pipe' });
+      } catch (testError) {
+        throw new Error(`Erro na sintaxe do Nginx: ${testError.stderr?.toString() || testError.message}`);
+      }
+
+      // 3. Reload do Nginx
+      execSync(`${NGINX_BIN} -s reload`, { stdio: 'pipe' });
+      return true;
+    } catch (error) {
+      console.error(`[NGINX SAVE CONFIG ERROR] ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Aplica a configuração do proxy no Nginx
    */
   static async applyConfig(proxy) {
