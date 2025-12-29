@@ -11,6 +11,7 @@ O **Nesk Agent** é um microserviço robusto projetado para automatizar o gerenc
 
 - ✅ **Gerenciamento de Proxy:** Criação, atualização, ativação e remoção de configurações Nginx.
 - ✅ **SSL Automático:** Integração nativa com Certbot para emissão e renovação de certificados.
+- ✅ **CDN Integrada:** Gerenciamento de arquivos e pastas para distribuição de conteúdo estático.
 - ✅ **Limpeza Inteligente:** Remoção automática de certificados SSL ao deletar um proxy para evitar acúmulo.
 - ✅ **Suporte a WebSocket:** Configuração pré-otimizada para aplicações que utilizam WebSockets.
 - ✅ **Arquitetura Modular:** Código organizado em Services, Controllers e Middlewares.
@@ -59,6 +60,10 @@ Todas as requisições (exceto `/health`) requerem o header:
 | `DELETE` | `/api/proxy/:id` | Remove um proxy e seu certificado SSL |
 | `POST` | `/api/proxy/:id/enable` | Ativa um proxy no Nginx |
 | `POST` | `/api/proxy/:id/disable` | Desativa um proxy e remove o SSL |
+| `GET` | `/api/cdn/list` | Lista arquivos e pastas da CDN |
+| `POST` | `/api/cdn/folder` | Cria uma nova pasta na CDN |
+| `POST` | `/api/cdn/upload` | Faz upload de arquivo para a CDN |
+| `DELETE` | `/api/cdn/item` | Remove um arquivo ou pasta da CDN |
 
 ## 🛡️ Requisitos da VPS
 
