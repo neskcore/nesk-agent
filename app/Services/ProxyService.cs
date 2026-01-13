@@ -27,7 +27,7 @@ namespace NeskAgent.Services
                 throw new ArgumentException("Domínio e host de destino são obrigatórios");
             }
 
-            if (proxy.TargetPort < 1 || proxy.TargetPort > 65535)
+            if (proxy.TargetPort.HasValue && (proxy.TargetPort < 1 || proxy.TargetPort > 65535))
             {
                 throw new ArgumentException("Número de porta inválido");
             }
@@ -49,12 +49,48 @@ namespace NeskAgent.Services
                     "INSERT INTO proxies (id, domain, target_host, target_port, enabled, created_at) VALUES (@Id, @Domain, @TargetHost, @TargetPort, @Enabled, @CreatedAt)",
                     proxy);
 
+                Console.WriteLine($"[PROXY] Proxy criado: {proxy.Domain}");
+
+                // Busca o proxy recém-criado para garantir que temos todos os dados (incluindo defaults do DB)
+                var result = await connection.QueryFirstOrDefaultAsync<Proxy>("SELECT * FROM proxies WHERE id = @Id", new { proxy.Id });
+
                 if (proxy.Enabled)
                 {
-                    await ApplyConfigAsync(proxy);
+                    try 
+                    {
+                        await ApplyConfigAsync(proxy);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[PROXY ERROR] Falha ao aplicar configuração Nginx para {proxy.Domain}: {ex.Message}");
+                    }
                 }
 
-                return proxy;
+                return result ?? proxy;
+            }
+        }
+
+        public async Task<string> GetConfigAsync(string id)
+        {
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var proxy = await connection.QueryFirstOrDefaultAsync<Proxy>("SELECT * FROM proxies WHERE id = @id", new { id });
+                if (proxy == null) throw new Exception("Proxy não encontrado");
+
+                return NginxService.GetRawConfig(proxy.Id);
+            }
+        }
+
+        public async Task<bool> SaveConfigAsync(string id, string config)
+        {
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                var proxy = await connection.QueryFirstOrDefaultAsync<Proxy>("SELECT * FROM proxies WHERE id = @id", new { id });
+                if (proxy == null) throw new Exception("Proxy não encontrado");
+
+                NginxService.SaveConfig(proxy.Id, config);
+                await NginxService.ReloadNginxAsync();
+                return true;
             }
         }
 
@@ -62,8 +98,8 @@ namespace NeskAgent.Services
         {
             using (var connection = new MySqlConnection(_connectionString))
             {
-                var rows = await connection.QueryAsync<Proxy>("SELECT * FROM proxies ORDER BY created_at DESC");
-                return rows;
+                var result = await connection.QueryAsync<Proxy>("SELECT * FROM proxies ORDER BY created_at DESC");
+                return result.ToList();
             }
         }
 
@@ -74,17 +110,24 @@ namespace NeskAgent.Services
                 var current = await connection.QueryFirstOrDefaultAsync<Proxy>("SELECT * FROM proxies WHERE id = @id", new { id });
                 if (current == null) throw new Exception("Proxy não encontrado");
 
-                current.Domain = data.Domain ?? current.Domain;
-                current.TargetHost = data.TargetHost ?? current.TargetHost;
-                current.TargetPort = data.TargetPort != 0 ? data.TargetPort : current.TargetPort;
-                current.Enabled = data.Enabled;
+                var oldDomain = current.Domain;
+                current.Domain = !string.IsNullOrEmpty(data.Domain) ? data.Domain : current.Domain;
+                current.TargetHost = !string.IsNullOrEmpty(data.TargetHost) ? data.TargetHost : current.TargetHost;
+                current.TargetPort = data.TargetPort.HasValue ? data.TargetPort : current.TargetPort;
+                current.Enabled = data.Enabled; // Enabled é booleano, assume o valor enviado
 
                 await connection.ExecuteAsync(
                     "UPDATE proxies SET domain = @Domain, target_host = @TargetHost, target_port = @TargetPort, enabled = @Enabled WHERE id = @Id",
                     current);
 
+                Console.WriteLine($"[PROXY] Proxy editado: {current.Domain}");
+
                 if (current.Enabled)
                 {
+                    if (oldDomain != current.Domain)
+                    {
+                        await NginxService.DeleteCertificateAsync(oldDomain);
+                    }
                     await ApplyConfigAsync(current);
                 }
                 else
@@ -125,30 +168,45 @@ namespace NeskAgent.Services
             using (var connection = new MySqlConnection(_connectionString))
             {
                 var domain = await connection.QueryFirstOrDefaultAsync<string>("SELECT domain FROM proxies WHERE id = @id", new { id });
+                if (domain == null)
+                {
+                    return false;
+                }
                 
                 await RemoveConfigAsync(id, domain);
                 
                 var affected = await connection.ExecuteAsync("DELETE FROM proxies WHERE id = @id", new { id });
+                Console.WriteLine($"[PROXY] Proxy removido: {domain}");
                 return affected > 0;
             }
         }
 
         public async Task ApplyConfigAsync(Proxy proxy)
         {
+            // 1. Gera e salva configuração básica (Porta 80)
             var config = NginxService.GenerateConfig(proxy);
             NginxService.SaveConfig(proxy.Id, config);
-            await NginxService.IssueCertificateAsync(proxy.Domain);
-            
-            // Regenerate config after cert issue to include SSL
-            config = NginxService.GenerateConfig(proxy);
-            NginxService.SaveConfig(proxy.Id, config);
-            
             await NginxService.ReloadNginxAsync();
+            
+            // 2. Tenta emitir o certificado SSL
+            var success = await NginxService.IssueCertificateAsync(proxy.Domain);
+            
+            if (success)
+            {
+                // 3. Regenera a configuração (agora o NginxService detectará o certificado e adicionará a porta 443)
+                config = NginxService.GenerateConfig(proxy);
+                NginxService.SaveConfig(proxy.Id, config);
+                await NginxService.ReloadNginxAsync();
+            }
         }
 
         public async Task RemoveConfigAsync(string id, string domain)
         {
             NginxService.DeleteConfig(id);
+            if (!string.IsNullOrEmpty(domain))
+            {
+                await NginxService.DeleteCertificateAsync(domain);
+            }
             await NginxService.ReloadNginxAsync();
         }
 
@@ -190,6 +248,7 @@ namespace NeskAgent.Services
                         File.Delete(chunkPath);
                     }
                 }
+                Console.WriteLine($"[CDN] Arquivo upado (chunk): {fileName}");
 
                 _ = Task.Run(async () => {
                     await Task.Delay(1000);
@@ -198,7 +257,7 @@ namespace NeskAgent.Services
 
                 return new {
                     filename = fileName,
-                    path = string.IsNullOrEmpty(subfolder) ? $"attachments/{fileName}" : $"attachments/{subfolder}/{fileName}",
+                    path = string.IsNullOrEmpty(cleanSubfolder) ? $"attachments/{fileName}" : $"attachments/{cleanSubfolder}/{fileName}",
                     completed = true
                 };
             }

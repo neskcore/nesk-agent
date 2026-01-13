@@ -54,22 +54,28 @@ namespace NeskAgent.Services
             }
 
             Directory.CreateDirectory(folderPath);
+            Console.WriteLine($"[CDN] Pasta criada: {name}");
             return true;
         }
 
         public async Task<bool> DeleteItemAsync(string name, string subfolder = "")
         {
             var cleanSubfolder = (subfolder ?? "").Replace("\\", "/").Trim('/');
-            var itemPath = Path.Combine(ATTACHMENTS_DIR, cleanSubfolder, name);
+            // Se o 'name' já for um caminho completo vindo do 'item_path', não precisamos do subfolder
+            var itemPath = name.Contains("/") || name.Contains("\\") 
+                ? Path.Combine(ATTACHMENTS_DIR, name.Replace("\\", "/").Trim('/'))
+                : Path.Combine(ATTACHMENTS_DIR, cleanSubfolder, name);
 
             if (File.Exists(itemPath))
             {
                 File.Delete(itemPath);
+                Console.WriteLine($"[CDN] Arquivo removido: {Path.GetFileName(itemPath)}");
                 return true;
             }
             else if (Directory.Exists(itemPath))
             {
                 Directory.Delete(itemPath, true);
+                Console.WriteLine($"[CDN] Pasta removida: {Path.GetFileName(itemPath)}");
                 return true;
             }
 
@@ -82,6 +88,8 @@ namespace NeskAgent.Services
             var publicPath = string.IsNullOrEmpty(cleanSubfolder) 
                 ? $"attachments/{fileName}" 
                 : $"attachments/{cleanSubfolder}/{fileName}";
+
+            Console.WriteLine($"[CDN] Arquivo upado: {fileName}");
 
             return new {
                 filename = fileName,

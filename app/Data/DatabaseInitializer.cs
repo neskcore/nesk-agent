@@ -20,14 +20,11 @@ namespace NeskAgent.Data
         {
             try
             {
-                Console.WriteLine("⏳ Verificando/Criando banco de dados e tabelas...");
-
                 // 1. Conecta sem especificar o banco de dados para criá-lo se não existir
                 using (var connection = new MySqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
                     await connection.ExecuteAsync($"CREATE DATABASE IF NOT EXISTS `{_dbName}`;");
-                    Console.WriteLine($"✅ Banco de dados \"{_dbName}\" verificado/criado.");
                 }
 
                 // 2. Conecta ao banco de dados específico para criar as tabelas
@@ -48,12 +45,11 @@ namespace NeskAgent.Data
                     ";
 
                     await connection.ExecuteAsync(createProxiesTable);
-                    Console.WriteLine("✅ Tabela \"proxies\" verificada/criada com sucesso.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Erro ao inicializar banco de dados: {ex.Message}");
+                Console.WriteLine($"❌ Erro crítico: {ex.Message}");
                 throw;
             }
         }

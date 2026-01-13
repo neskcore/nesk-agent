@@ -16,9 +16,10 @@ namespace NeskAgent.Middlewares
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Lê a API Key direto do ambiente a cada requisição ou armazena
             string apiKey = Environment.GetEnvironmentVariable("AGENT_API_KEY");
-            if (context.Request.Path == "/" || context.Request.Path == "/health")
+
+            // Public paths
+            if (context.Request.Path == "/" || context.Request.Path == "/health" || context.Request.Path == "/api/test")
             {
                 await _next(context);
                 return;
@@ -36,7 +37,7 @@ namespace NeskAgent.Middlewares
             if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
             {
                 context.Response.StatusCode = 401;
-                await context.Response.WriteAsJsonAsync(new { success = false, error = "Não autorizado: Token ausente ou formato inválido" });
+                await context.Response.WriteAsJsonAsync(new { success = false, error = "Não autorizado" });
                 return;
             }
 
@@ -45,7 +46,7 @@ namespace NeskAgent.Middlewares
             if (token != apiKey)
             {
                 context.Response.StatusCode = 403;
-                await context.Response.WriteAsJsonAsync(new { success = false, error = "Proibido: API Key inválida" });
+                await context.Response.WriteAsJsonAsync(new { success = false, error = "Proibido" });
                 return;
             }
 

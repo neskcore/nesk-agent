@@ -20,13 +20,55 @@ namespace NeskAgent.Controllers
             _proxyService = proxyService;
         }
 
+        [HttpGet("test")]
+        public IActionResult Test()
+        {
+            return Ok(new { success = true, message = "Proxy Controller está acessível!", timestamp = DateTime.Now });
+        }
+
         [HttpPost("proxy")]
-        public async Task<IActionResult> Create([FromBody] Proxy proxy)
+        public async Task<IActionResult> Create([FromBody] Newtonsoft.Json.Linq.JObject rawBody)
         {
             try
             {
+                var proxy = rawBody.ToObject<Proxy>();
+                
                 var result = await _proxyService.CreateProxyAsync(proxy);
-                return CreatedAtAction(nameof(Create), new { success = true, data = result });
+                return StatusCode(201, new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet("proxy/{id}/config")]
+        public async Task<IActionResult> GetConfig(string id)
+        {
+            try
+            {
+                var config = await _proxyService.GetConfigAsync(id);
+                return Ok(new { success = true, data = config });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost("proxy/{id}/config")]
+        public async Task<IActionResult> SaveConfig(string id, [FromBody] Newtonsoft.Json.Linq.JObject body)
+        {
+            try
+            {
+                // No Node.js o campo é 'content'
+                string config = body["content"]?.ToString() ?? body["config"]?.ToString();
+                if (string.IsNullOrEmpty(config))
+                {
+                    return BadRequest(new { success = false, error = "Conteúdo (content) é obrigatório" });
+                }
+                await _proxyService.SaveConfigAsync(id, config);
+                return Ok(new { success = true, message = "Configuração salva com sucesso" });
             }
             catch (Exception ex)
             {
@@ -49,10 +91,12 @@ namespace NeskAgent.Controllers
         }
 
         [HttpPut("proxy/{id}")]
-        public async Task<IActionResult> Update(string id, [FromBody] Proxy proxy)
+        public async Task<IActionResult> Update(string id, [FromBody] Newtonsoft.Json.Linq.JObject rawBody)
         {
             try
             {
+                var proxy = rawBody.ToObject<Proxy>();
+                
                 var result = await _proxyService.UpdateProxyAsync(id, proxy);
                 return Ok(new { success = true, data = result });
             }
@@ -96,39 +140,7 @@ namespace NeskAgent.Controllers
             try
             {
                 var success = await _proxyService.DeleteProxyAsync(id);
-                return Ok(new { success });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, error = ex.Message });
-            }
-        }
-
-        [HttpGet("proxy/{id}/config")]
-        public IActionResult GetConfig(string id)
-        {
-            try
-            {
-                // In a real scenario, we might want to read from the file system
-                // For now, let's return a message or implement the logic
-                return Ok(new { success = true, data = "Configuração do Nginx (leitura do sistema não implementada diretamente aqui)" });
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { success = false, error = ex.Message });
-            }
-        }
-
-        [HttpPost("proxy/{id}/config")]
-        public IActionResult SaveConfig(string id, [FromBody] dynamic body)
-        {
-            try
-            {
-                string content = body.content;
-                if (string.IsNullOrEmpty(content)) return BadRequest(new { success = false, error = "Conteúdo é obrigatório" });
-
-                NginxService.SaveConfig(id, content);
-                return Ok(new { success = true, message = "Configuração salva com sucesso" });
+                return Ok(new { success = true });
             }
             catch (Exception ex)
             {

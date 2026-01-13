@@ -1,72 +1,112 @@
-# 🚀 Nesk Agent (C# Edition)
+# 🌐 Nesk Agent (C# Edition)
 
-[![.NET Version](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Nginx](https://img.shields.io/badge/Nginx-Proxy-blue.svg)](https://nginx.org/)
-[![SSL](https://img.shields.io/badge/SSL-Certbot-orange.svg)](https://certbot.eff.org/)
+[![.NET Version](https://img.shields.io/badge/.NET-10.0-purple.svg?style=flat-square)](https://dotnet.microsoft.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Nginx](https://img.shields.io/badge/Nginx-Proxy-blue.svg?style=flat-square)](https://nginx.org/)
+[![SSL](https://img.shields.io/badge/SSL-Certbot-orange.svg?style=flat-square)](https://certbot.eff.org/)
 
-O **Nesk Agent** é um microserviço de alta performance desenvolvido em C# (.NET 10) projetado para automatizar o gerenciamento de proxies reversos Nginx e a emissão de certificados SSL via Certbot. Esta versão foi otimizada para ser executada como um binário único e nativo em sistemas Linux ARM64 (VPS).
-
-## 🛠️ Funcionalidades
-
-- ✅ **Performance Superior:** Reescrito em C# para menor consumo de recursos e maior velocidade.
-- ✅ **Binário Único:** Executável auto-contido, sem necessidade de instalar o runtime do .NET na VPS.
-- ✅ **Gerenciamento de Proxy:** Criação, atualização, ativação e remoção de configurações Nginx.
-- ✅ **SSL Automático:** Integração nativa com Certbot para emissão e renovação de certificados.
-- ✅ **Dual-Port:** API na porta 4000 e CDN estática na porta 4001 integradas no mesmo processo.
-- ✅ **CDN Integrada:** Gerenciamento de arquivos e pastas para distribuição de conteúdo estático.
-- ✅ **Segurança:** Autenticação via API Key (Bearer Token).
-
-## 🚀 Instalação na VPS (Linux ARM64)
-
-1. **Preparação:**
-   Certifique-se de que o Nginx e Certbot estão instalados:
-   ```bash
-   sudo apt update
-   sudo apt install nginx certbot python3-certbot-nginx -y
-   ```
-
-2. **Deploy:**
-   - Copie o executável `NeskAgent` para a sua pasta na VPS (ex: `/root/apis/neskagent/`).
-   - Crie um arquivo `.env` na mesma pasta do executável.
-
-3. **Configuração do `.env`:**
-   ```env
-   PORT=4000
-   CDN_PORT=4001
-   AGENT_API_KEY=sua_chave_secreta_aqui
-   AGENT_DB_HOST=seu_ip_mysql
-   AGENT_DB_NAME=nesk_agent
-   AGENT_DB_USER=seu_usuario
-   AGENT_DB_PASS=sua_senha
-   NGINX_CONF_PATH=/etc/nginx/conf.d/
-   NGINX_BIN_PATH=/usr/sbin/nginx
-   ```
-
-4. **Execução:**
-   ```bash
-   chmod +x NeskAgent
-   ./NeskAgent
-   ```
-
-## 🔌 API Endpoints
-
-Todas as requisições (exceto `/health`) requerem o header:
-`Authorization: Bearer <AGENT_API_KEY>`
-
-| Método | Rota | Descrição |
-| :--- | :--- | :--- |
-| `GET` | `/health` | Verifica o status do agente |
-| `GET` | `/api/proxy` | Lista todos os proxies |
-| `POST` | `/api/proxy` | Cria um novo proxy |
-| `PUT` | `/api/proxy/:id` | Atualiza um proxy existente |
-| `DELETE` | `/api/proxy/:id` | Remove um proxy e seu certificado SSL |
-| `POST` | `/api/proxy/:id/enable` | Ativa um proxy no Nginx |
-| `POST` | `/api/proxy/:id/disable` | Desativa um proxy e remove o SSL |
-| `GET` | `/api/cdn/list` | Lista arquivos e pastas da CDN |
-| `POST` | `/api/cdn/folder` | Cria uma nova pasta na CDN |
-| `POST` | `/api/cdn/upload` | Faz upload de arquivo para a CDN |
-| `DELETE` | `/api/cdn/item` | Remove um arquivo ou pasta da CDN |
+O **Nesk Agent** é uma solução robusta e de alta performance desenvolvida em **C# (.NET 10)**, projetada especificamente para o gerenciamento automatizado de infraestrutura de rede, incluindo proxies reversos Nginx e automação de certificados SSL via Certbot.
 
 ---
-Desenvolvido com ❤️ por ByCronoz
+
+## 💎 Diferenciais Técnicos
+
+*   **Alta Performance:** Engine reescrita em .NET 10 para execução nativa com baixíssimo overhead de memória e CPU.
+*   **Arquitetura Single-Binary:** Compilado como um executável auto-contido para Linux ARM64, eliminando a dependência de runtimes externos na VPS.
+*   **Gestão de Infraestrutura:** Automação completa de arquivos de configuração `.conf` do Nginx.
+*   **SSL Nativo:** Ciclo de vida completo de certificados (emissão, renovação e remoção) integrado ao Certbot.
+*   **Arquitetura Dual-Stack:** API de Gerenciamento (Porta 4000) e CDN de Alta Disponibilidade (Porta 4001) operando em um único processo.
+
+---
+
+## 🛠️ Requisitos do Sistema
+
+Antes de iniciar, certifique-se de possuir as dependências necessárias instaladas em sua VPS Linux:
+
+```bash
+# Atualização de pacotes e instalação do Nginx + Certbot
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+---
+
+## 🚀 Guia de Implantação (Deployment)
+
+### 1. Preparação do Ambiente
+Crie um diretório dedicado para o agente e mova o binário executável:
+```bash
+mkdir -p /opt/nesk-agent
+mv NeskAgent /opt/nesk-agent/
+cd /opt/nesk-agent/
+chmod +x NeskAgent
+```
+
+### 2. Configuração de Variáveis de Ambiente
+Crie um arquivo `.env` no diretório raiz do executável com as seguintes definições:
+
+```ini
+# Configurações de Rede
+PORT=4000
+CDN_PORT=4001
+
+# Segurança
+AGENT_API_KEY=sua_chave_secreta_aqui
+
+# Banco de Dados (MySQL/MariaDB)
+AGENT_DB_HOST=localhost
+AGENT_DB_NAME=nesk_agent
+AGENT_DB_USER=seu_usuario
+AGENT_DB_PASS=sua_senha
+
+# Caminhos do Sistema (Opcional)
+NGINX_CONF_PATH=/etc/nginx/conf.d/
+NGINX_BIN_PATH=/usr/sbin/nginx
+```
+
+---
+
+## 🔌 Referência da API
+
+Todas as chamadas de API (exceto endpoints de health check) devem incluir o cabeçalho de autenticação:
+`Authorization: Bearer <AGENT_API_KEY>`
+
+### 📂 Módulo de Proxy (Nginx)
+
+| Método | Endpoint | Função |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Status vital do serviço |
+| `GET` | `/api/proxy` | Listagem de todos os hosts configurados |
+| `POST` | `/api/proxy` | Provisionamento de novo host + SSL |
+| `PUT` | `/api/proxy/:id` | Atualização de parâmetros de roteamento |
+| `DELETE` | `/api/proxy/:id` | Descomissionamento de host e limpeza de SSL |
+| `POST` | `/api/proxy/:id/enable` | Ativação imediata de configuração |
+| `POST` | `/api/proxy/:id/disable` | Suspensão de serviço e remoção SSL |
+| `GET` | `/api/proxy/:id/config` | Leitura de configuração bruta (.conf) |
+
+### 📦 Módulo CDN (Content Delivery Network)
+
+| Método | Endpoint | Função |
+| :--- | :--- | :--- |
+| `GET` | `/api/cdn/list` | Navegação na estrutura de arquivos |
+| `POST` | `/api/cdn/folder` | Criação de diretórios estruturados |
+| `POST` | `/api/cdn/upload` | Upload otimizado (Multipart/Chunked) |
+| `DELETE` | `/api/cdn/item` | Remoção definitiva de ativos |
+
+---
+
+## � Monitoramento e Logs
+
+O sistema utiliza um padrão de logs semânticos e minimalistas para facilitar o monitoramento via `journalctl` ou logs de container:
+
+*   `[PROXY] Proxy criado: example.com` - Novo roteamento estabelecido.
+*   `[CERTIFICADO] Certificado criado para example.com` - SSL emitido com sucesso.
+*   `[CDN] Arquivo upado: asset_01.zip` - Novo ativo disponível na CDN.
+*   `[PROXY] Proxy removido: old-site.com` - Roteamento e arquivos de configuração deletados.
+
+---
+
+## 📄 Licença
+
+Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+
+**Desenvolvido por ByCronoz**

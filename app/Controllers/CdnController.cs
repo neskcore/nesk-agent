@@ -33,12 +33,18 @@ namespace NeskAgent.Controllers
         }
 
         [HttpPost("folder")]
-        public async Task<IActionResult> CreateFolder([FromBody] dynamic body)
+        public async Task<IActionResult> CreateFolder([FromBody] Newtonsoft.Json.Linq.JObject body)
         {
             try
             {
-                string name = body.name;
-                string subfolder = body.subfolder ?? "";
+                string name = body["name"]?.ToString();
+                string subfolder = body["subfolder"]?.ToString() ?? "";
+                
+                if (string.IsNullOrEmpty(name))
+                {
+                    return BadRequest(new { success = false, error = "Nome da pasta é obrigatório" });
+                }
+
                 await _cdnService.CreateFolderAsync(name, subfolder);
                 return Ok(new { success = true, message = "Pasta criada com sucesso" });
             }
@@ -49,13 +55,20 @@ namespace NeskAgent.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromForm] string subfolder = "")
+        public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromQuery] string subfolder = "")
         {
             try
             {
                 if (file == null) return BadRequest(new { success = false, error = "Nenhum arquivo enviado" });
 
-                var targetDir = Path.Combine(AppContext.BaseDirectory, "cdn", "attachments", (subfolder ?? "").Replace("\\", "/").Trim('/'));
+                // Pega subfolder da query ou do form (como no Node.js)
+                string actualSubfolder = subfolder;
+                if (string.IsNullOrEmpty(actualSubfolder) && Request.Form.ContainsKey("subfolder"))
+                {
+                    actualSubfolder = Request.Form["subfolder"];
+                }
+
+                var targetDir = Path.Combine(AppContext.BaseDirectory, "cdn", "attachments", (actualSubfolder ?? "").Replace("\\", "/").Trim('/'));
                 if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
 
                 var filePath = Path.Combine(targetDir, file.FileName);
@@ -64,7 +77,7 @@ namespace NeskAgent.Controllers
                     await file.CopyToAsync(stream);
                 }
 
-                var data = await _cdnService.ProcessUploadAsync(file.FileName, subfolder);
+                var data = await _cdnService.ProcessUploadAsync(file.FileName, actualSubfolder);
                 return Ok(new { 
                     success = true, 
                     message = "Upload realizado com sucesso",
@@ -78,17 +91,31 @@ namespace NeskAgent.Controllers
         }
 
         [HttpDelete("item")]
-        public async Task<IActionResult> DeleteItem([FromBody] dynamic body)
+        public async Task<IActionResult> DeleteItem([FromBody] Newtonsoft.Json.Linq.JObject body)
         {
             try
             {
-                string itemPath = body.item_path;
-                // Assuming itemPath might need parsing or just using name/subfolder
-                // For simplicity, let's assume body has name and subfolder
-                string name = body.name;
-                string subfolder = body.subfolder ?? "";
+                // No Node.js o campo é 'item_path'
+                string itemPath = body["item_path"]?.ToString();
                 
-                var success = await _cdnService.DeleteItemAsync(name, subfolder);
+                // Fallback para 'name' e 'subfolder' se item_path não existir
+                if (string.IsNullOrEmpty(itemPath))
+                {
+                    string name = body["name"]?.ToString();
+                    string subfolder = body["subfolder"]?.ToString() ?? "";
+                    
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        itemPath = string.IsNullOrEmpty(subfolder) ? name : $"{subfolder.Trim('/')}/{name}";
+                    }
+                }
+
+                if (string.IsNullOrEmpty(itemPath))
+                {
+                    return BadRequest(new { success = false, error = "Caminho do item (item_path) é obrigatório" });
+                }
+                
+                var success = await _cdnService.DeleteItemAsync(itemPath, "");
                 if (success)
                     return Ok(new { success = true, message = "Item removido com sucesso" });
                 else

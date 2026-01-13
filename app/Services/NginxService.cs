@@ -78,7 +78,6 @@ server {{
         {
             try
             {
-                Console.WriteLine($"[CERTBOT] Gerando certificado para {domain}...");
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "sudo",
@@ -92,18 +91,49 @@ server {{
                 using (var process = Process.Start(processInfo))
                 {
                     await process.WaitForExitAsync();
+
                     if (process.ExitCode != 0)
                     {
-                        var error = await process.StandardError.ReadToEndAsync();
-                        Console.WriteLine($"[CERTBOT WARNING] Falha ao gerar certificado para {domain}: {error}");
                         return false;
                     }
+                    
+                    Console.WriteLine($"[CERTIFICADO] Certificado criado para {domain}");
                     return true;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[CERTBOT ERROR] {ex.Message}");
+                return false;
+            }
+        }
+
+        public static async Task<bool> DeleteCertificateAsync(string domain)
+        {
+            try
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "sudo",
+                    Arguments = $"certbot delete --cert-name {domain} --non-interactive",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(processInfo))
+                {
+                    await process.WaitForExitAsync();
+                    if (process.ExitCode != 0)
+                    {
+                        return false;
+                    }
+                    Console.WriteLine($"[CERTIFICADO] Certificado removido para {domain}");
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
                 return false;
             }
         }
@@ -127,9 +157,9 @@ server {{
                     await process.WaitForExitAsync();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[NGINX ERROR] Falha ao recarregar: {ex.Message}");
+                // Silencioso
             }
         }
 
@@ -137,7 +167,26 @@ server {{
         {
             var fileName = $"nesk_proxy_{proxyId}.conf";
             var fullPath = Path.Combine(NGINX_CONF_PATH, fileName);
+            
+            // Garante que o diretório existe
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             File.WriteAllText(fullPath, config);
+        }
+
+        public static string GetRawConfig(string proxyId)
+        {
+            var fileName = $"nesk_proxy_{proxyId}.conf";
+            var fullPath = Path.Combine(NGINX_CONF_PATH, fileName);
+            if (File.Exists(fullPath))
+            {
+                return File.ReadAllText(fullPath);
+            }
+            return "";
         }
 
         public static void DeleteConfig(string proxyId)

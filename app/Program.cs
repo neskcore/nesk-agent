@@ -21,11 +21,10 @@ if (!File.Exists(envPath)) envPath = Path.Combine(Directory.GetCurrentDirectory(
 if (File.Exists(envPath))
 {
     Env.Load(envPath);
-    Console.WriteLine($"✅ Arquivo .env carregado de: {envPath}");
 }
 else
 {
-    Console.WriteLine("⚠️ Aviso: Arquivo .env não encontrado. Usando valores padrão/variáveis de ambiente.");
+    Console.WriteLine("⚠️ Aviso: Arquivo .env não encontrado.");
 }
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,27 +50,32 @@ dbUser ??= "root";
 dbPass ??= "";
 dbName ??= "nesk_agent";
 
-Console.WriteLine($"ℹ️ Configurações carregadas:");
-Console.WriteLine($"   - DB Host: {dbHost}");
-Console.WriteLine($"   - DB User: {dbUser}");
-Console.WriteLine($"   - DB Name: {dbName}");
-Console.WriteLine($"   - API Key: {(string.IsNullOrEmpty(apiKey) ? "⚠️ NÃO DEFINIDA" : "✅ DEFINIDA")}");
-Console.WriteLine($"   - Portas: {port} (API) / {cdnPort} (CDN)");
-
 var connectionString = $"Server={dbHost};User ID={dbUser};Password={dbPass};AllowUserVariables=True";
 
 // Add services
 builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddCors();
-builder.Services.AddSingleton(new ProxyService($"{connectionString};Database={dbName}"));
-builder.Services.AddSingleton<CdnService>();
 
-// Configure Kestrel to listen on both ports
+// Configura limites de upload e portas no Kestrel
 builder.WebHost.ConfigureKestrel(options =>
 {
+    options.Limits.MaxRequestBodySize = 200 * 1024 * 1024; // 200MB
     options.ListenAnyIP(port);
     options.ListenAnyIP(cdnPort);
 });
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 200 * 1024 * 1024; // 200MB
+    options.MemoryBufferThreshold = int.MaxValue;
+});
+
+// Configura o Dapper para mapear snake_case para PascalCase
+Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
+builder.Services.AddSingleton(new ProxyService($"{connectionString};Database={dbName}"));
+builder.Services.AddSingleton<CdnService>();
 
 var app = builder.Build();
 
