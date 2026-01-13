@@ -1,49 +1,52 @@
-# 🚀 Nesk Agent
+# 🚀 Nesk Agent (C# Edition)
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
+[![.NET Version](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Nginx](https://img.shields.io/badge/Nginx-Proxy-blue.svg)](https://nginx.org/)
 [![SSL](https://img.shields.io/badge/SSL-Certbot-orange.svg)](https://certbot.eff.org/)
 
-O **Nesk Agent** é um microserviço robusto projetado para automatizar o gerenciamento de proxies reversos Nginx e a emissão de certificados SSL via Certbot. Ideal para sistemas que precisam criar e gerenciar domínios dinamicamente em uma VPS.
+O **Nesk Agent** é um microserviço de alta performance desenvolvido em C# (.NET 10) projetado para automatizar o gerenciamento de proxies reversos Nginx e a emissão de certificados SSL via Certbot. Esta versão foi otimizada para ser executada como um binário único e nativo em sistemas Linux ARM64 (VPS).
 
 ## 🛠️ Funcionalidades
 
+- ✅ **Performance Superior:** Reescrito em C# para menor consumo de recursos e maior velocidade.
+- ✅ **Binário Único:** Executável auto-contido, sem necessidade de instalar o runtime do .NET na VPS.
 - ✅ **Gerenciamento de Proxy:** Criação, atualização, ativação e remoção de configurações Nginx.
 - ✅ **SSL Automático:** Integração nativa com Certbot para emissão e renovação de certificados.
+- ✅ **Dual-Port:** API na porta 4000 e CDN estática na porta 4001 integradas no mesmo processo.
 - ✅ **CDN Integrada:** Gerenciamento de arquivos e pastas para distribuição de conteúdo estático.
-- ✅ **Limpeza Inteligente:** Remoção automática de certificados SSL ao deletar um proxy para evitar acúmulo.
-- ✅ **Suporte a WebSocket:** Configuração pré-otimizada para aplicações que utilizam WebSockets.
-- ✅ **Arquitetura Modular:** Código organizado em Services, Controllers e Middlewares.
+- ✅ **Segurança:** Autenticação via API Key (Bearer Token).
 
-## 🚀 Instalação
+## 🚀 Instalação na VPS (Linux ARM64)
 
-1. Clone o repositório:
+1. **Preparação:**
+   Certifique-se de que o Nginx e Certbot estão instalados:
    ```bash
-   git clone https://github.com/seu-usuario/nesk-agent.git
-   cd nesk-agent
+   sudo apt update
+   sudo apt install nginx certbot python3-certbot-nginx -y
    ```
 
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
+2. **Deploy:**
+   - Copie o executável `NeskAgent` para a sua pasta na VPS (ex: `/root/apis/neskagent/`).
+   - Crie um arquivo `.env` na mesma pasta do executável.
 
-3. Configure o arquivo `.env`:
+3. **Configuração do `.env`:**
    ```env
    PORT=4000
+   CDN_PORT=4001
    AGENT_API_KEY=sua_chave_secreta_aqui
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASS=sua_senha
-   DB_NAME=nesk_finance
+   AGENT_DB_HOST=seu_ip_mysql
+   AGENT_DB_NAME=nesk_agent
+   AGENT_DB_USER=seu_usuario
+   AGENT_DB_PASS=sua_senha
    NGINX_CONF_PATH=/etc/nginx/conf.d/
-   NGINX_BIN_PATH=nginx
+   NGINX_BIN_PATH=/usr/sbin/nginx
    ```
 
-4. Inicie o servidor:
+4. **Execução:**
    ```bash
-   npm start
+   chmod +x NeskAgent
+   ./NeskAgent
    ```
 
 ## 🔌 API Endpoints
@@ -64,21 +67,6 @@ Todas as requisições (exceto `/health`) requerem o header:
 | `POST` | `/api/cdn/folder` | Cria uma nova pasta na CDN |
 | `POST` | `/api/cdn/upload` | Faz upload de arquivo para a CDN |
 | `DELETE` | `/api/cdn/item` | Remove um arquivo ou pasta da CDN |
-
-## 🛡️ Requisitos da VPS
-
-Para o funcionamento pleno, a VPS deve ter instalado:
-- **Node.js** (v14+)
-- **Nginx**
-- **Certbot** com plugin Nginx:
-  ```bash
-  sudo apt update
-  sudo apt install certbot python3-certbot-nginx -y
-  ```
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 Desenvolvido com ❤️ por ByCronoz
