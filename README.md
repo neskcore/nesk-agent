@@ -11,8 +11,9 @@ O **Nesk Agent** é uma solução robusta e de alta performance desenvolvida em 
 
 ## 💎 Diferenciais Técnicos
 
-*   **Alta Performance:** Engine reescrita em .NET 10 para execução nativa com baixíssimo overhead de memória e CPU.
-*   **Arquitetura Single-Binary:** Compilado como um executável auto-contido para Linux ARM64, eliminando a dependência de runtimes externos na VPS.
+*   **Arquitetura Modular:** Lógica de negócio isolada em `NeskAgent.Lib.dll`, permitindo atualizações rápidas e desacopladas.
+*   **Arquitetura Híbrida Single-File:** Executável nativo (`NeskAgent`) que carrega o .NET 10 internamente, eliminando a necessidade de instalar o runtime na VPS, mantendo apenas a biblioteca de funções externa.
+*   **Alta Performance:** Engine escrita em .NET 10 para execução nativa com baixíssimo overhead de memória e CPU, otimizada para ARM64.
 *   **Gestão de Infraestrutura:** Automação completa de arquivos de configuração `.conf` do Nginx.
 *   **SSL Nativo:** Ciclo de vida completo de certificados (emissão, renovação e remoção) integrado ao Certbot.
 *   **Arquitetura Dual-Stack:** API de Gerenciamento (Porta 4000) e CDN de Alta Disponibilidade (Porta 4001) operando em um único processo.
@@ -33,12 +34,22 @@ sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 ## 🚀 Guia de Implantação (Deployment)
 
 ### 1. Preparação do Ambiente
-Crie um diretório dedicado para o agente e mova o binário executável:
+Crie um diretório dedicado para o agente e mova os arquivos necessários:
 ```bash
 mkdir -p /opt/nesk-agent
+# Mova o executável e a DLL de funções
 mv NeskAgent /opt/nesk-agent/
+mv NeskAgent.Lib.dll /opt/nesk-agent/
+mv start.sh /opt/nesk-agent/
+
 cd /opt/nesk-agent/
-chmod +x NeskAgent
+chmod +x NeskAgent start.sh
+```
+
+### 2. Inicialização Rápida
+Utilize o script de inicialização para garantir as permissões e rodar o agente:
+```bash
+./start.sh
 ```
 
 ### 2. Configuração de Variáveis de Ambiente

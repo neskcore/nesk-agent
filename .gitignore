@@ -2,6 +2,7 @@
 bin/
 obj/
 publish/
+publish-arm64/
 
 # IDEs
 .vscode/
@@ -24,5 +25,5 @@ Thumbs.db
 logs/
 
 # CDN
-app/cdn/attachments/*
-!app/cdn/attachments/.gitkeep
+**/cdn/attachments/*
+!**/cdn/attachments/.gitkeep

@@ -53,7 +53,9 @@ dbName ??= "nesk_agent";
 var connectionString = $"Server={dbHost};User ID={dbUser};Password={dbPass};AllowUserVariables=True";
 
 // Add services
-builder.Services.AddControllers().AddNewtonsoftJson();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson()
+    .AddApplicationPart(typeof(NeskAgent.Controllers.CdnController).Assembly);
 builder.Services.AddCors();
 
 // Configura limites de upload e portas no Kestrel

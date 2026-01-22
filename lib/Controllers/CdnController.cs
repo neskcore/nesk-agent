@@ -55,29 +55,35 @@ namespace NeskAgent.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromQuery] string subfolder = "")
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(MultipartBodyLengthLimit = 209715200)] // 200MB
+        public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromForm] string? subfolder)
         {
             try
             {
-                if (file == null) return BadRequest(new { success = false, error = "Nenhum arquivo enviado" });
+                if (file == null || file.Length == 0) return BadRequest(new { success = false, error = "Nenhum arquivo enviado ou arquivo vazio" });
 
-                // Pega subfolder da query ou do form (como no Node.js)
-                string actualSubfolder = subfolder;
-                if (string.IsNullOrEmpty(actualSubfolder) && Request.Form.ContainsKey("subfolder"))
+                // Pega subfolder do form ou da query
+                string? actualSubfolder = subfolder;
+                if (string.IsNullOrEmpty(actualSubfolder) && Request.Query.ContainsKey("subfolder"))
                 {
-                    actualSubfolder = Request.Form["subfolder"];
+                    actualSubfolder = Request.Query["subfolder"];
                 }
 
-                var targetDir = Path.Combine(AppContext.BaseDirectory, "cdn", "attachments", (actualSubfolder ?? "").Replace("\\", "/").Trim('/'));
-                if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
+                var cleanSubfolder = (actualSubfolder ?? "").Replace("\\", "/").Trim('/');
+                var targetDir = Path.Combine(AppContext.BaseDirectory, "cdn", "attachments", cleanSubfolder);
+                
+                if (!Directory.Exists(targetDir)) 
+                    Directory.CreateDirectory(targetDir);
 
                 var filePath = Path.Combine(targetDir, file.FileName);
-                using (var stream = System.IO.File.Create(filePath))
+                
+                using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                var data = await _cdnService.ProcessUploadAsync(file.FileName, actualSubfolder);
+                var data = await _cdnService.ProcessUploadAsync(file.FileName, cleanSubfolder);
                 return Ok(new { 
                     success = true, 
                     message = "Upload realizado com sucesso",
@@ -86,6 +92,7 @@ namespace NeskAgent.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[CDN] Erro no upload: {ex.Message}");
                 return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
