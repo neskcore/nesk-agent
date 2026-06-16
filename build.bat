@@ -1,0 +1,96 @@
+@echo off
+setlocal
+
+:: ============================================================
+:: NESK AGENT v3 - BUILD SCRIPT
+:: ============================================================
+
+:menu
+cls
+echo ================================================
+echo     NESK AGENT v3 - BUILD TOOL
+echo ================================================
+echo.
+echo Build disponiveis:
+echo   [1] Windows  (win-x64)
+echo   [2] Linux    (linux-x64)
+echo   [3] Linux ARM (linux-arm64)
+echo   [4] Todas as plataformas
+echo   [5] Limpar pasta de build
+echo   [6] Sair
+
+set /p choice=Digite sua opcao (1-6): 
+
+goto case_%choice%
+
+:case_1
+call :build win-x64
+pause
+goto menu
+
+:case_2
+call :build linux-x64
+pause
+goto menu
+
+:case_3
+call :build linux-arm64
+pause
+goto menu
+
+:case_4
+call :build win-x64
+call :build linux-x64
+call :build linux-arm64
+pause
+goto menu
+
+:case_5
+echo.
+if exist build (
+    rmdir /s /q build
+    echo Pasta build/ removida.
+) else (
+    echo Nada a limpar.
+)
+pause
+goto menu
+
+:case_6
+exit /b 0
+
+:default
+echo Opcao invalida.
+pause
+goto menu
+
+:: ============================================================
+:: SUB-ROTINA DE BUILD
+:: ============================================================
+:build
+set "rid=%~1"
+set "output=build\%rid%"
+
+cls
+echo ================================================
+echo     COMPILANDO: %rid%
+echo ================================================
+echo.
+
+echo [1/2] Limpando diretorio anterior...
+if exist "%output%" rmdir /s /q "%output%" 2>nul
+
+echo [2/2] Executando dotnet publish...
+dotnet publish "NeskAgent\NeskAgent.csproj" -c Release -r %rid% --self-contained false -p:PublishSingleFile=true -o "%output%"
+
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERRO] Build falhou para %rid%.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [SUCESSO] Build %rid% concluido!
+echo    Pasta: %output%
+exit /b 0

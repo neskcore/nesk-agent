@@ -1,29 +1,35 @@
-# .NET
+# Build outputs
 bin/
 obj/
 publish/
-publish-arm64/
+out/
+build/
 
-# IDEs
+# Test results
+TestResults/
+*.user
+*.suo
+.vs/
 .vscode/
 .idea/
-*.user
-*.userosscache
-*.sln.docstates
 
-# Environment
-.env
-.env.local
-.env.*.local
-
-# OS
-.DS_Store
-Thumbs.db
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
 
 # Logs
 *.log
-logs/
 
-# CDN
-**/cdn/attachments/*
-!**/cdn/attachments/.gitkeep
+# Local data / secrets
+Data/
+.agent.nortlin
+agent.nortlin
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Runtime
+*.runtimeconfig.json.bak

@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/app/">
-    <Project Path="app/NeskAgent.csproj" />
-  </Folder>
-  <Folder Name="/lib/">
-    <Project Path="lib/NeskAgent.Lib.csproj" />
-  </Folder>
-</Solution>
